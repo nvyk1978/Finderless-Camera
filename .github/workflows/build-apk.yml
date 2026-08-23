@@ -1,3 +1,4 @@
+\
 name: Build APK from ZIP
 run-name: FinderlessCamera build #${{ github.run_number }}
 
@@ -30,18 +31,35 @@ jobs:
           unzip -q source.zip -d extracted
 
       - name: Verify source ZIP
+        id: verify
+        shell: bash
         run: |
-          echo "===== VERSION ====="
-          grep -n "versionCode\|versionName" extracted/app/build.gradle.kts
-          grep -q 'versionCode = 8' extracted/app/build.gradle.kts
-          grep -q 'versionName = "0.1.5"' extracted/app/build.gradle.kts
+          set -euo pipefail
 
-          echo "===== VERIFY NO Space WIDGET ====="
+          test -f extracted/settings.gradle.kts
+          test -f extracted/build.gradle.kts
+          test -f extracted/app/build.gradle.kts
+          test -f extracted/app/src/main/AndroidManifest.xml
+          test -f extracted/app/src/main/res/layout/notification_camera.xml
+
+          VERSION_CODE="$(sed -nE 's/^[[:space:]]*versionCode[[:space:]]*=[[:space:]]*([0-9]+).*/\1/p' extracted/app/build.gradle.kts | head -n1)"
+          VERSION_NAME="$(sed -nE 's/^[[:space:]]*versionName[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/p' extracted/app/build.gradle.kts | head -n1)"
+
+          test -n "$VERSION_CODE"
+          test -n "$VERSION_NAME"
+
+          echo "===== VERSION ====="
+          echo "versionCode=$VERSION_CODE"
+          echo "versionName=$VERSION_NAME"
+
           if grep -R "<Space" extracted/app/src/main/res/layout/notification_camera.xml; then
-            echo "ERROR: Old notification layout detected"
+            echo "ERROR: unsupported Space widget found in notification layout"
             exit 1
           fi
 
+          SAFE_VERSION="$(printf '%s' "$VERSION_NAME" | tr -c 'A-Za-z0-9._-' '-')"
+          echo "version_name=$VERSION_NAME" >> "$GITHUB_OUTPUT"
+          echo "safe_version=$SAFE_VERSION" >> "$GITHUB_OUTPUT"
           echo "VERIFY OK"
 
       - name: Set up Gradle
@@ -53,10 +71,15 @@ jobs:
         working-directory: extracted
         run: gradle :app:assembleDebug --stacktrace
 
+      - name: Verify built APK
+        run: |
+          test -f extracted/app/build/outputs/apk/debug/app-debug.apk
+          ls -lh extracted/app/build/outputs/apk/debug/app-debug.apk
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: FinderlessCamera-${{ github.run_number }}-debug-apk
+          name: FinderlessCamera-${{ steps.verify.outputs.safe_version }}-${{ github.run_number }}-debug-apk
           path: extracted/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14
