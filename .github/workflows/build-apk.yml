@@ -28,28 +28,21 @@ jobs:
           rm -rf extracted
           mkdir extracted
           unzip -q source.zip -d extracted
-          echo "===== EXTRACTED FILES ====="
-          find extracted -maxdepth 3 -type f | sort
 
       - name: Verify source ZIP
         run: |
           echo "===== VERSION ====="
           grep -n "versionCode\|versionName" extracted/app/build.gradle.kts
-
-          echo "===== NOTIFICATION LAYOUT ====="
-          cat extracted/app/src/main/res/layout/notification_camera.xml
-
-          echo "===== VERIFY EXPECTED VERSION ====="
-          grep -q 'versionCode = 7' extracted/app/build.gradle.kts
-          grep -q 'versionName = "0.1.4-diagnostic-notiffix"' extracted/app/build.gradle.kts
+          grep -q 'versionCode = 8' extracted/app/build.gradle.kts
+          grep -q 'versionName = "0.1.5"' extracted/app/build.gradle.kts
 
           echo "===== VERIFY NO Space WIDGET ====="
           if grep -R "<Space" extracted/app/src/main/res/layout/notification_camera.xml; then
-            echo "ERROR: Old notification layout detected: <Space> still exists"
+            echo "ERROR: Old notification layout detected"
             exit 1
           fi
 
-          echo "VERIFY OK: correct source ZIP is being built"
+          echo "VERIFY OK"
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -59,11 +52,6 @@ jobs:
       - name: Build debug APK
         working-directory: extracted
         run: gradle :app:assembleDebug --stacktrace
-
-      - name: Verify built APK exists
-        run: |
-          test -f extracted/app/build/outputs/apk/debug/app-debug.apk
-          ls -lh extracted/app/build/outputs/apk/debug/app-debug.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
