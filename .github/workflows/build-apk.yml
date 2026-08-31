@@ -70,15 +70,21 @@ jobs:
         working-directory: extracted
         run: gradle :app:assembleDebug --stacktrace
 
-      - name: Verify built APK
+      - name: Create versioned APK
+        shell: bash
         run: |
-          test -f extracted/app/build/outputs/apk/debug/app-debug.apk
-          ls -lh extracted/app/build/outputs/apk/debug/app-debug.apk
+          set -euo pipefail
+          SRC="extracted/app/build/outputs/apk/debug/app-debug.apk"
+          DST="extracted/app/build/outputs/apk/debug/FinderlessCamera-v${{ steps.verify.outputs.safe_version }}.apk"
+          test -f "$SRC"
+          cp "$SRC" "$DST"
+          test -f "$DST"
+          ls -lh "$DST"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: FinderlessCamera-${{ steps.verify.outputs.safe_version }}-${{ github.run_number }}-debug-apk
-          path: extracted/app/build/outputs/apk/debug/app-debug.apk
+          name: FinderlessCamera-v${{ steps.verify.outputs.safe_version }}
+          path: extracted/app/build/outputs/apk/debug/FinderlessCamera-v${{ steps.verify.outputs.safe_version }}.apk
           if-no-files-found: error
           retention-days: 14
